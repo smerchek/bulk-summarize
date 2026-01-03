@@ -3,6 +3,7 @@
 Bulk YouTube video summarizer for research. Scans channels and playlists for videos matching keywords, then uses AI to create detailed summaries.
 
 Perfect for:
+
 - Podcast research and episode digests
 - Conference talk compilations
 - Tutorial series notes
@@ -21,11 +22,13 @@ Perfect for:
 ### Prerequisites
 
 1. **[Bun](https://bun.sh)** - JavaScript runtime
+
    ```bash
    curl -fsSL https://bun.sh/install | bash
    ```
 
 2. **[yt-dlp](https://github.com/yt-dlp/yt-dlp)** - YouTube metadata downloader
+
    ```bash
    # macOS
    brew install yt-dlp
@@ -44,32 +47,33 @@ Perfect for:
 
 **Option 1: Download binary (easiest)**
 
-Download the latest release for your platform from [Releases](https://github.com/youruser/bulk-summarize/releases):
+Download the latest release for your platform from [Releases](https://github.com/smerchek/bulk-summarize/releases):
 
 ```bash
 # macOS (Apple Silicon)
-curl -L https://github.com/youruser/bulk-summarize/releases/latest/download/bulk-summarize-darwin-arm64 -o /usr/local/bin/bulk-summarize
+curl -L https://github.com/smerchek/bulk-summarize/releases/latest/download/bulk-summarize-darwin-arm64 -o /usr/local/bin/bulk-summarize
 chmod +x /usr/local/bin/bulk-summarize
 
 # macOS (Intel)
-curl -L https://github.com/youruser/bulk-summarize/releases/latest/download/bulk-summarize-darwin-x64 -o /usr/local/bin/bulk-summarize
+curl -L https://github.com/smerchek/bulk-summarize/releases/latest/download/bulk-summarize-darwin-x64 -o /usr/local/bin/bulk-summarize
 chmod +x /usr/local/bin/bulk-summarize
 
 # Linux
-curl -L https://github.com/youruser/bulk-summarize/releases/latest/download/bulk-summarize-linux-x64 -o /usr/local/bin/bulk-summarize
+curl -L https://github.com/smerchek/bulk-summarize/releases/latest/download/bulk-summarize-linux-x64 -o /usr/local/bin/bulk-summarize
 chmod +x /usr/local/bin/bulk-summarize
 ```
 
 **Option 2: From source (requires Bun)**
 
 ```bash
-git clone https://github.com/youruser/bulk-summarize.git
+git clone https://github.com/smerchek/bulk-summarize.git
 cd bulk-summarize
 bun install
 bun link --global
 ```
 
 Verify installation:
+
 ```bash
 bulk-summarize --help
 ```
@@ -159,25 +163,25 @@ summaries/
 
 ### Settings
 
-| Field | Description |
-|-------|-------------|
-| `keywords` | Default keywords. Videos matching ANY keyword included. Empty = all videos |
-| `summaryLength` | `short`, `medium`, `long`, `xl`, `xxl` |
-| `summaryPrompt` | AI instructions. `{title}` and `{source}` are replaced |
-| `maxVideosPerSource` | Limit per source |
-| `model` | Override summarize.sh model (e.g. `cli/claude/haiku`) |
+| Field                | Description                                                                |
+| -------------------- | -------------------------------------------------------------------------- |
+| `keywords`           | Default keywords. Videos matching ANY keyword included. Empty = all videos |
+| `summaryLength`      | `short`, `medium`, `long`, `xl`, `xxl`                                     |
+| `summaryPrompt`      | AI instructions. `{title}` and `{source}` are replaced                     |
+| `maxVideosPerSource` | Limit per source                                                           |
+| `model`              | Override summarize.sh model (e.g. `cli/claude/haiku`)                      |
 
 ### Source Options
 
-| Field | Description |
-|-------|-------------|
-| `id` | Unique identifier for the source (used for folder names) |
-| `name` | Display name |
-| `url` | YouTube channel or playlist URL |
-| `type` | `channel` or `playlist` (auto-detected if omitted) |
-| `enabled` | Set to `false` to skip this source |
+| Field      | Description                                                        |
+| ---------- | ------------------------------------------------------------------ |
+| `id`       | Unique identifier for the source (used for folder names)           |
+| `name`     | Display name                                                       |
+| `url`      | YouTube channel or playlist URL                                    |
+| `type`     | `channel` or `playlist` (auto-detected if omitted)                 |
+| `enabled`  | Set to `false` to skip this source                                 |
 | `keywords` | Override global keywords for this source. Empty array = all videos |
-| `tags` | Optional tags for organizing sources |
+| `tags`     | Optional tags for organizing sources                               |
 
 ## Finding YouTube Channels
 
@@ -204,7 +208,11 @@ yt-dlp --flat-playlist --print "%(title)s: %(url)s" \
   "name": "AI Podcasts",
   "keywords": ["AI", "GPT", "machine learning"],
   "sources": [
-    { "id": "lex", "name": "Lex Fridman", "url": "https://www.youtube.com/@lexfridman" }
+    {
+      "id": "lex",
+      "name": "Lex Fridman",
+      "url": "https://www.youtube.com/@lexfridman"
+    }
   ],
   "settings": {
     "summaryLength": "xxl",
@@ -243,7 +251,11 @@ yt-dlp --flat-playlist --print "%(title)s: %(url)s" \
   "name": "Portugal Research",
   "keywords": ["Porto", "Lisbon", "expat", "cost of living"],
   "sources": [
-    { "id": "expats", "name": "ExpatsEverywhere", "url": "https://www.youtube.com/@ExpatsEverywhere" }
+    {
+      "id": "expats",
+      "name": "ExpatsEverywhere",
+      "url": "https://www.youtube.com/@ExpatsEverywhere"
+    }
   ],
   "settings": {
     "summaryPrompt": "Extract: neighborhood tips, costs, cultural insights, family activities. Ignore ads.",
@@ -293,6 +305,7 @@ See [summarize.sh config docs](https://summarize.sh/docs/config.html) for all op
 ## Costs
 
 Approximate costs using Claude Haiku:
+
 - 5-10 min video: ~$0.02
 - 20-30 min video: ~$0.03-0.05
 - 1+ hour video: ~$0.05-0.10
