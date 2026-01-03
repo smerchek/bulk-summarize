@@ -1,0 +1,21 @@
+{
+  "name": "React Conf 2024 Digest",
+  "description": "Comprehensive digest of React Conf 2024 presentations",
+  "keywords": [],
+  "sources": [
+    {
+      "id": "react-conf-2024",
+      "name": "React Conf 2024",
+      "url": "https://www.youtube.com/playlist?list=PLPxbbTqCLbGHPxZpw4xj_Wwg8-fdNxJRh",
+      "type": "playlist",
+      "enabled": true,
+      "tags": ["conference", "react", "2024"]
+    }
+  ],
+  "settings": {
+    "maxVideosPerSource": 100,
+    "summaryLength": "long",
+    "summaryPrompt": "Summarize this React conference talk. Include:\n- Speaker and their role/company\n- Main thesis and key points\n- New React features or APIs introduced\n- Code patterns and best practices shown\n- Migration paths or breaking changes\n- Recommended next steps\n\nTitle: {title}",
+    "outputDir": "react-conf-2024"
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "name": "AI/ML Podcast Research",
+  "description": "Research on AI and machine learning through podcast discussions",
+  "keywords": ["AI", "machine learning", "GPT", "LLM", "neural", "deep learning"],
+  "sources": [
+    {
+      "id": "lex-fridman",
+      "name": "Lex Fridman Podcast (YouTube)",
+      "url": "https://www.youtube.com/@lexfridman",
+      "type": "channel",
+      "enabled": true,
+      "tags": ["youtube", "interviews", "tech"]
+    },
+    {
+      "id": "lex-fridman-rss",
+      "name": "Lex Fridman Podcast (RSS)",
+      "url": "https://lexfridman.com/feed/podcast/",
+      "type": "channel",
+      "enabled": false,
+      "tags": ["rss", "interviews", "tech"]
+    },
+    {
+      "id": "huberman-lab",
+      "name": "Huberman Lab (RSS)",
+      "url": "https://feeds.megaphone.fm/hubermanlab",
+      "type": "channel",
+      "enabled": true,
+      "tags": ["rss", "science", "health"]
+    }
+  ],
+  "settings": {
+    "maxVideosPerSource": 30,
+    "summaryLength": "xxl",
+    "summaryPrompt": "Create detailed notes from this podcast episode on AI/ML topics. Extract:\n- Guest background and expertise\n- Main AI/ML concepts discussed\n- Technical insights and architecture details\n- Predictions and opinions about the field\n- Tools, libraries, or papers mentioned\n- Actionable advice for practitioners\n\nIgnore: sponsors, ads, promotional content.\n\nTitle: {title}",
+    "outputDir": "ai-podcast-notes"
+  }
+}

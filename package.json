@@ -1,0 +1,22 @@
+{
+  "name": "bulk-summarize",
+  "version": "0.1.0",
+  "description": "Bulk YouTube video summarizer for research",
+  "bin": {
+    "bulk-summarize": "bulk-summarize.ts"
+  },
+  "type": "module",
+  "scripts": {
+    "build": "bun build --compile bulk-summarize.ts --outfile dist/bulk-summarize",
+    "build:release": "bun run scripts/build-release.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "zod": "4"
+  }
+}

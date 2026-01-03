@@ -1,0 +1,45 @@
+{
+  "name": "Tech Industry Research",
+  "description": "Cross-platform research combining YouTube videos and podcast RSS feeds",
+  "keywords": ["startup", "venture", "tech", "founder", "product"],
+  "sources": [
+    {
+      "id": "ycombinator-youtube",
+      "name": "Y Combinator (YouTube)",
+      "url": "https://www.youtube.com/@ycombinator",
+      "type": "channel",
+      "enabled": true,
+      "tags": ["youtube", "startups", "vc"]
+    },
+    {
+      "id": "acquired-rss",
+      "name": "Acquired (RSS Feed)",
+      "url": "https://feeds.acquired.fm/acquired",
+      "type": "channel",
+      "enabled": true,
+      "tags": ["rss", "business", "history"]
+    },
+    {
+      "id": "lenny-youtube",
+      "name": "Lenny's Podcast (YouTube)",
+      "url": "https://www.youtube.com/@LennysPodcast",
+      "type": "channel",
+      "enabled": true,
+      "tags": ["youtube", "product", "growth"]
+    },
+    {
+      "id": "all-in-rss",
+      "name": "All-In Podcast (RSS Feed)",
+      "url": "https://feeds.megaphone.fm/all-in-with-chamath-jason-sacks-friedberg",
+      "type": "channel",
+      "enabled": true,
+      "tags": ["rss", "vc", "tech"]
+    }
+  ],
+  "settings": {
+    "maxVideosPerSource": 25,
+    "summaryLength": "xl",
+    "summaryPrompt": "Create comprehensive notes on this tech/startup content. Extract:\n- Main topic and thesis\n- Key insights and frameworks\n- Companies and products mentioned\n- Tactical advice and best practices\n- Notable quotes\n- Resources and tools recommended\n\nIgnore: ads, sponsors, self-promotion.\n\nTitle: {title}\nSource: {source}",
+    "outputDir": "tech-research"
+  }
+}

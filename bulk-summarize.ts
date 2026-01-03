@@ -10,10 +10,12 @@
  */
 
 import { $ } from "bun";
-import { existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync } from "fs";
-import { join, basename } from "path";
+import { existsSync, mkdirSync, readdirSync } from "node:fs";
+import { join, basename } from "node:path";
+import { z } from "zod";
+import pkg from "./package.json";
 
-const VERSION = "0.1.0";
+const VERSION = pkg.version;
 
 // Paths (can be overridden via CLI)
 let CONFIG_PATH = "bulk-summarize.json";
@@ -21,30 +23,41 @@ let OUTPUT_DIR = "summaries";
 let COMBINED_FILE = "all-summaries.md";
 
 // ============================================================================
-// Types
+// Schemas
 // ============================================================================
 
-interface Source {
-  id: string;
-  name: string;
-  url: string;
-  type?: "channel" | "playlist";
-  enabled?: boolean;
-  tags?: string[];
-}
+const SourceSchema = z.object({
+  id: z.string().min(1, "Source id is required"),
+  name: z.string().min(1, "Source name is required"),
+  url: z.url("Invalid YouTube URL"),
+  type: z.enum(["channel", "playlist"]).optional(),
+  enabled: z.boolean().default(true),
+  tags: z.array(z.string()).optional(),
+  keywords: z.array(z.string()).optional(),
+});
 
-interface Config {
-  name: string;
-  description?: string;
-  keywords: string[];
-  sources: Source[];
-  settings: {
-    maxVideosPerSource: number;
-    summaryLength: "short" | "medium" | "long" | "xl" | "xxl";
-    summaryPrompt: string;
-    outputDir?: string;
-  };
-}
+const SettingsSchema = z.object({
+  maxVideosPerSource: z.number().int().positive().default(50),
+  summaryLength: z.enum(["short", "medium", "long", "xl", "xxl"]).default("xl"),
+  summaryPrompt: z.string().min(1, "Summary prompt is required"),
+  outputDir: z.string().default("summaries"),
+  model: z.string().optional(), // e.g. "cli/claude/haiku"
+});
+
+const ConfigSchema = z.object({
+  name: z.string().min(1, "Project name is required"),
+  description: z.string().optional(),
+  keywords: z.array(z.string()).default([]),
+  sources: z.array(SourceSchema).min(1, "At least one source is required"),
+  settings: SettingsSchema,
+});
+
+type Source = z.infer<typeof SourceSchema>;
+type Config = z.infer<typeof ConfigSchema>;
+
+// ============================================================================
+// Internal Types (not from config)
+// ============================================================================
 
 interface VideoInfo {
   id: string;
@@ -95,13 +108,26 @@ function getSummaryPath(config: Config, sourceId: string, videoId: string): stri
 // Config & Checkpoint Management
 // ============================================================================
 
-function loadConfig(path: string): Config {
+async function loadConfig(path: string): Promise<Config> {
   if (!existsSync(path)) {
     console.error(`❌ Config not found: ${path}`);
     console.error(`   Run 'bulk-summarize init' to create a starter config`);
     process.exit(1);
   }
-  return JSON.parse(readFileSync(path, "utf-8"));
+
+  const raw = await Bun.file(path).json();
+  const result = ConfigSchema.safeParse(raw);
+
+  if (!result.success) {
+    console.error(`❌ Invalid config: ${path}\n`);
+    for (const issue of result.error.issues) {
+      const path = issue.path.join(".");
+      console.error(`   ${path ? path + ": " : ""}${issue.message}`);
+    }
+    process.exit(1);
+  }
+
+  return result.data;
 }
 
 function ensureSourceDir(config: Config, sourceId: string): void {
@@ -111,7 +137,7 @@ function ensureSourceDir(config: Config, sourceId: string): void {
   }
 }
 
-function loadSourceCheckpoint(config: Config, source: Source): SourceCheckpoint {
+async function loadSourceCheckpoint(config: Config, source: Source): Promise<SourceCheckpoint> {
   ensureSourceDir(config, source.id);
   const path = getSourceCheckpointPath(config, source.id);
 
@@ -123,13 +149,13 @@ function loadSourceCheckpoint(config: Config, source: Source): SourceCheckpoint 
       videos: {},
     };
   }
-  return JSON.parse(readFileSync(path, "utf-8"));
+  return Bun.file(path).json();
 }
 
-function saveSourceCheckpoint(config: Config, checkpoint: SourceCheckpoint): void {
+async function saveSourceCheckpoint(config: Config, checkpoint: SourceCheckpoint): Promise<void> {
   ensureSourceDir(config, checkpoint.sourceId);
   const path = getSourceCheckpointPath(config, checkpoint.sourceId);
-  writeFileSync(path, JSON.stringify(checkpoint, null, 2));
+  await Bun.write(path, JSON.stringify(checkpoint, null, 2));
 }
 
 // ============================================================================
@@ -143,6 +169,9 @@ async function scanSource(
 ): Promise<VideoInfo[]> {
   console.log(`\n📺 Scanning: ${source.name}`);
   console.log(`   URL: ${source.url}`);
+  if (keywords.length > 0) {
+    console.log(`   Keywords: ${keywords.join(", ")}`);
+  }
 
   let scanUrl = source.url;
   if (source.type !== "playlist" && !source.url.includes("/playlist")) {
@@ -216,11 +245,17 @@ async function summarizeVideo(
     .replace("{title}", video.title)
     .replace("{source}", sourceId);
 
+  const args = [
+    "--length", config.settings.summaryLength,
+    "--prompt", prompt,
+  ];
+  if (config.settings.model) {
+    args.push("--model", config.settings.model);
+  }
+  args.push(video.url);
+
   try {
-    const result = await $`summarize \
-      --length ${config.settings.summaryLength} \
-      --prompt ${prompt} \
-      ${video.url}`.quiet();
+    const result = await $`summarize ${args}`.quiet();
 
     const summary = result.stdout.toString();
 
@@ -241,7 +276,7 @@ summarized_at: ${new Date().toISOString()}
 ${summary}
 `;
 
-    writeFileSync(summaryFile, content);
+    await Bun.write(summaryFile, content);
     console.log(`   ✅ Saved`);
     return { success: true };
   } catch (error: any) {
@@ -285,7 +320,7 @@ async function cmdInit(name?: string): Promise<void> {
     },
   };
 
-  writeFileSync(configName, JSON.stringify(starterConfig, null, 2));
+  await Bun.write(configName, JSON.stringify(starterConfig, null, 2));
   console.log(`✅ Created config: ${configName}`);
   console.log(`\nNext steps:`);
   console.log(`  1. Edit ${configName} to add your sources and keywords`);
@@ -294,14 +329,12 @@ async function cmdInit(name?: string): Promise<void> {
 }
 
 async function cmdScan(options: { source?: string }): Promise<void> {
-  const config = loadConfig(CONFIG_PATH);
+  const config = await loadConfig(CONFIG_PATH);
 
   console.log(`🔍 Scanning sources for: ${config.name}\n`);
 
   if (config.keywords.length > 0) {
-    console.log(`Keywords: ${config.keywords.join(", ")}\n`);
-  } else {
-    console.log(`Keywords: (none - fetching all videos)\n`);
+    console.log(`Default keywords: ${config.keywords.join(", ")}\n`);
   }
 
   let sources = config.sources.filter((s) => s.enabled !== false);
@@ -320,11 +353,14 @@ async function cmdScan(options: { source?: string }): Promise<void> {
   }
 
   for (const source of sources) {
-    const checkpoint = loadSourceCheckpoint(config, source);
+    const checkpoint = await loadSourceCheckpoint(config, source);
+
+    // Use source-specific keywords if defined, otherwise fall back to global
+    const keywords = source.keywords ?? config.keywords;
 
     const videos = await scanSource(
       source,
-      config.keywords,
+      keywords,
       config.settings.maxVideosPerSource
     );
 
@@ -342,7 +378,7 @@ async function cmdScan(options: { source?: string }): Promise<void> {
 
     checkpoint.lastScanned = new Date().toISOString();
     console.log(`   Added ${newCount} new videos to queue`);
-    saveSourceCheckpoint(config, checkpoint);
+    await saveSourceCheckpoint(config, checkpoint);
   }
 
   console.log(`\n✅ Scan complete! Run 'bulk-summarize summarize' to process.`);
@@ -354,7 +390,7 @@ async function cmdSummarize(options: {
   delay?: number;
   parallel?: number;
 }): Promise<void> {
-  const config = loadConfig(CONFIG_PATH);
+  const config = await loadConfig(CONFIG_PATH);
   const delay = options.delay ?? 1000;
   const parallel = options.parallel ?? 1;
 
@@ -377,7 +413,7 @@ async function cmdSummarize(options: {
   for (const source of sources) {
     if (processed >= maxProcess) break;
 
-    const checkpoint = loadSourceCheckpoint(config, source);
+    const checkpoint = await loadSourceCheckpoint(config, source);
     const pendingVideos = Object.entries(checkpoint.videos)
       .filter(([_, v]) => v.status === "pending")
       .slice(0, maxProcess - processed);
@@ -414,7 +450,7 @@ async function cmdSummarize(options: {
           processed++;
         }
 
-        saveSourceCheckpoint(config, checkpoint);
+        await saveSourceCheckpoint(config, checkpoint);
 
         if (delay > 0 && i + parallel < pendingVideos.length) {
           await Bun.sleep(delay);
@@ -439,7 +475,7 @@ async function cmdSummarize(options: {
           checkpoint.videos[videoId].error = result.error;
         }
 
-        saveSourceCheckpoint(config, checkpoint);
+        await saveSourceCheckpoint(config, checkpoint);
         processed++;
 
         if (delay > 0) {
@@ -453,7 +489,7 @@ async function cmdSummarize(options: {
 }
 
 async function cmdCombine(options: { output?: string }): Promise<void> {
-  const config = loadConfig(CONFIG_PATH);
+  const config = await loadConfig(CONFIG_PATH);
   const outputFile = options.output || COMBINED_FILE;
   const outputDir = getOutputDir(config);
 
@@ -490,6 +526,12 @@ async function cmdCombine(options: { output?: string }): Promise<void> {
     return a.path.localeCompare(b.path);
   });
 
+  // Pre-load all file contents in parallel
+  const fileContents = await Promise.all(
+    summaryFiles.map(async ({ path }) => Bun.file(path).text())
+  );
+  const contentMap = new Map(summaryFiles.map(({ path }, i) => [path, fileContents[i]]));
+
   let combined = `# ${config.name} - Video Summaries
 
 Generated: ${new Date().toISOString()}
@@ -511,7 +553,7 @@ This document contains ${summaryFiles.length} summarized videos.
       combined += `\n### ${sourceName}\n\n`;
     }
 
-    const content = readFileSync(path, "utf-8");
+    const content = contentMap.get(path)!;
     const titleMatch = content.match(/^# (.+)$/m);
     const title = titleMatch ? titleMatch[1] : basename(path);
     const anchor = title.toLowerCase().replace(/[^a-z0-9]+/g, "-");
@@ -529,24 +571,24 @@ This document contains ${summaryFiles.length} summarized videos.
       combined += `\n# Source: ${sourceName}\n\n---\n\n`;
     }
 
-    const content = readFileSync(path, "utf-8");
+    const content = contentMap.get(path)!;
     const withoutFrontmatter = content.replace(/^---[\s\S]*?---\n/, "");
     combined += withoutFrontmatter;
     combined += "\n\n---\n\n";
   }
 
-  writeFileSync(outputFile, combined);
+  await Bun.write(outputFile, combined);
   console.log(`✅ Combined ${summaryFiles.length} summaries into: ${outputFile}`);
 }
 
-function cmdStatus(): void {
+async function cmdStatus(): Promise<void> {
   if (!existsSync(CONFIG_PATH)) {
     console.error(`❌ Config not found: ${CONFIG_PATH}`);
     console.error(`   Run 'bulk-summarize init' to create one`);
     return;
   }
 
-  const config = loadConfig(CONFIG_PATH);
+  const config = await loadConfig(CONFIG_PATH);
 
   console.log(`📊 Status: ${config.name}\n`);
   console.log(`Config: ${CONFIG_PATH}`);
@@ -565,7 +607,7 @@ function cmdStatus(): void {
       continue;
     }
 
-    const checkpoint = loadSourceCheckpoint(config, source);
+    const checkpoint = await loadSourceCheckpoint(config, source);
     const pending = Object.values(checkpoint.videos).filter((v) => v.status === "pending").length;
     const summarized = Object.values(checkpoint.videos).filter((v) => v.status === "summarized").length;
     const errors = Object.values(checkpoint.videos).filter((v) => v.status === "error").length;
@@ -591,16 +633,16 @@ function cmdStatus(): void {
   );
 }
 
-function cmdReset(target?: string): void {
-  const config = loadConfig(CONFIG_PATH);
+async function cmdReset(target?: string): Promise<void> {
+  const config = await loadConfig(CONFIG_PATH);
 
   if (target) {
     const checkpointPath = getSourceCheckpointPath(config, target);
     if (existsSync(checkpointPath)) {
-      const checkpoint = loadSourceCheckpoint(config, { id: target, name: target, url: "" });
+      const checkpoint = await loadSourceCheckpoint(config, { id: target, name: target, url: "" });
       checkpoint.videos = {};
       checkpoint.lastScanned = undefined;
-      saveSourceCheckpoint(config, checkpoint);
+      await saveSourceCheckpoint(config, checkpoint);
       console.log(`✅ Reset: ${target}`);
     } else {
       console.log(`❌ Source not found or not scanned: ${target}`);
@@ -610,18 +652,18 @@ function cmdReset(target?: string): void {
     for (const source of config.sources) {
       const checkpointPath = getSourceCheckpointPath(config, source.id);
       if (existsSync(checkpointPath)) {
-        const checkpoint = loadSourceCheckpoint(config, source);
+        const checkpoint = await loadSourceCheckpoint(config, source);
         checkpoint.videos = {};
         checkpoint.lastScanned = undefined;
-        saveSourceCheckpoint(config, checkpoint);
+        await saveSourceCheckpoint(config, checkpoint);
       }
     }
     console.log(`✅ Reset all source checkpoints`);
   }
 }
 
-function cmdList(): void {
-  const config = loadConfig(CONFIG_PATH);
+async function cmdList(): Promise<void> {
+  const config = await loadConfig(CONFIG_PATH);
 
   console.log(`📋 Sources in ${CONFIG_PATH}:\n`);
 
@@ -767,13 +809,13 @@ switch (args.command) {
     await cmdCombine({ output: args.output });
     break;
   case "status":
-    cmdStatus();
+    await cmdStatus();
     break;
   case "list":
-    cmdList();
+    await cmdList();
     break;
   case "reset":
-    cmdReset(args.target);
+    await cmdReset(args.target);
     break;
   case "version":
     console.log(`bulk-summarize v${VERSION}`);

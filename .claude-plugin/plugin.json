@@ -1,0 +1,7 @@
+{
+  "name": "bulk-summarize",
+  "version": "0.1.0",
+  "description": "Media research assistant for bulk video and podcast summarization across YouTube, Apple Podcasts, Spotify, and other platforms",
+  "author": "Scott",
+  "repository": "https://github.com/scottlepp/bulk-summarize"
+}

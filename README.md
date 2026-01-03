@@ -42,18 +42,36 @@ Perfect for:
 
 ### Install bulk-summarize
 
-```bash
-# Clone or download
-git clone https://github.com/youruser/bulk-summarize.git
-cd bulk-summarize
+**Option 1: Download binary (easiest)**
 
-# Run directly
-bun run bulk-summarize.ts --help
+Download the latest release for your platform from [Releases](https://github.com/youruser/bulk-summarize/releases):
+
+```bash
+# macOS (Apple Silicon)
+curl -L https://github.com/youruser/bulk-summarize/releases/latest/download/bulk-summarize-darwin-arm64 -o /usr/local/bin/bulk-summarize
+chmod +x /usr/local/bin/bulk-summarize
+
+# macOS (Intel)
+curl -L https://github.com/youruser/bulk-summarize/releases/latest/download/bulk-summarize-darwin-x64 -o /usr/local/bin/bulk-summarize
+chmod +x /usr/local/bin/bulk-summarize
+
+# Linux
+curl -L https://github.com/youruser/bulk-summarize/releases/latest/download/bulk-summarize-linux-x64 -o /usr/local/bin/bulk-summarize
+chmod +x /usr/local/bin/bulk-summarize
 ```
 
-Add an alias:
+**Option 2: From source (requires Bun)**
+
 ```bash
-alias bulk-summarize="bun run /path/to/bulk-summarize.ts"
+git clone https://github.com/youruser/bulk-summarize.git
+cd bulk-summarize
+bun install
+bun link --global
+```
+
+Verify installation:
+```bash
+bulk-summarize --help
 ```
 
 ## Quick Start
@@ -125,14 +143,16 @@ summaries/
       "id": "channel-id",
       "name": "Channel Name",
       "url": "https://www.youtube.com/@ChannelHandle",
-      "enabled": true
+      "enabled": true,
+      "keywords": ["override", "keywords"]
     }
   ],
   "settings": {
     "maxVideosPerSource": 50,
     "summaryLength": "xl",
     "summaryPrompt": "Extract key insights. Ignore ads.\n\nTitle: {title}",
-    "outputDir": "summaries"
+    "outputDir": "summaries",
+    "model": "cli/claude/haiku"
   }
 }
 ```
@@ -141,10 +161,23 @@ summaries/
 
 | Field | Description |
 |-------|-------------|
-| `keywords` | Videos matching ANY keyword included. Empty = all videos |
+| `keywords` | Default keywords. Videos matching ANY keyword included. Empty = all videos |
 | `summaryLength` | `short`, `medium`, `long`, `xl`, `xxl` |
 | `summaryPrompt` | AI instructions. `{title}` and `{source}` are replaced |
 | `maxVideosPerSource` | Limit per source |
+| `model` | Override summarize.sh model (e.g. `cli/claude/haiku`) |
+
+### Source Options
+
+| Field | Description |
+|-------|-------------|
+| `id` | Unique identifier for the source (used for folder names) |
+| `name` | Display name |
+| `url` | YouTube channel or playlist URL |
+| `type` | `channel` or `playlist` (auto-detected if omitted) |
+| `enabled` | Set to `false` to skip this source |
+| `keywords` | Override global keywords for this source. Empty array = all videos |
+| `tags` | Optional tags for organizing sources |
 
 ## Finding YouTube Channels
 
@@ -242,6 +275,20 @@ bulk-summarize summarize -s lex-fridman
 # Resume (checkpoints auto-saved)
 bulk-summarize summarize
 ```
+
+## Configuring summarize.sh
+
+bulk-summarize uses [summarize.sh](https://summarize.sh) for AI summaries. Configure your preferred model and API key via summarize's config:
+
+```bash
+# See available options
+summarize --help
+
+# Example: use Claude Haiku (fast + cheap)
+summarize --model cli/claude/haiku <url>
+```
+
+See [summarize.sh config docs](https://summarize.sh/docs/config.html) for all options.
 
 ## Costs
 
